@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HTTP & Aspectos Básicos · Presentación Interactiva (MDN)</title>
+<style>
+/* ============================================================
+   TEMA / BASE (Inspirado en arquitectura sci-fi de alto rendimiento)
+   ============================================================ */
+:root{
+  --bg:#070a12;
+  --bg2:#0b1120;
+  --panel:rgba(255,255,255,.045);
+  --panel2:rgba(255,255,255,.028);
+  --stroke:rgba(255,255,255,.10);
+  --stroke2:rgba(255,255,255,.06);
+  --text:#e9eefc;
+  --muted:#8ea0c4;
+  --cyan:#39e1ff;
+  --violet:#8b7bff;
+  --amber:#ffb020;
+  --green:#38e07a;
+  --red:#ff4d6d;
+  --pink:#ff5fd2;
+  --r:18px;
+  --font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  font-family:var(--font);
+  color:var(--text);
+  background:var(--bg);
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* fondo global con rejilla animada y orbes de gradiente */
+.bg-fx{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+.bg-fx .grid{
+  position:absolute;inset:-20%;
+  background-image:
+    linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);
+  background-size:64px 64px;
+  transform:perspective(600px) rotateX(0deg);
+  animation:gridslide 24s linear infinite;
+  opacity:.55;
+}
+@keyframes gridslide{from{background-position:0 0,0 0}to{background-position:0 64px,64px 0}}
+.bg-fx .glow{position:absolute;border-radius:50%;filter:blur(90px);opacity:.42}
+.blob-1{width:52vw;height:52vw;left:-14vw;top:-12vw;background:radial-gradient(circle,#1b6bff,transparent 65%);animation:float1 22s ease-in-out infinite}
+.blob-2{width:46vw;height:46vw;right:-12vw;top:24vh;background:radial-gradient(circle,#8b5cff,transparent 65%);animation:float2 26s ease-in-out infinite}
+.blob-3{width:40vw;height:40vw;left:28vw;bottom:-18vw;background:radial-gradient(circle,#00c2a8,transparent 65%);animation:float3 30s ease-in-out infinite}
+@keyframes float1{50%{transform:translate3d(6vw,4vh,0) scale(1.08)}}
+@keyframes float2{50%{transform:translate3d(-5vw,-5vh,0) scale(1.12)}}
+@keyframes float3{50%{transform:translate3d(4vw,-6vh,0) scale(1.06)}}
+
+/* ============================================================
+   HUD: barra de progreso + navegación de puntos
+   ============================================================ */
+.progress{position:fixed;top:0;left:0;right:0;height:3px;background:rgba(255,255,255,.06);z-index:60}
+.progress i{display:block;height:100%;width:0;
+  background:linear-gradient(90deg,var(--cyan),var(--violet),var(--pink));
+  box-shadow:0 0 14px rgba(57,225,255,.7);transition:width .12s linear}
+
+.dots{position:fixed;right:18px;top:50%;transform:translateY(-50%);z-index:60;
+  display:flex;flex-direction:column;gap:14px}
+.dots a{position:relative;width:11px;height:11px;border-radius:50%;
+  border:1px solid rgba(255,255,255,.35);background:transparent;transition:.28s}
+.dots a:hover{border-color:var(--cyan);transform:scale(1.35)}
+.dots a.on{background:var(--cyan);border-color:var(--cyan);box-shadow:0 0 14px var(--cyan)}
+.dots a span{position:absolute;right:22px;top:50%;transform:translateY(-50%) translateX(6px);
+  white-space:nowrap;font-size:12px;letter-spacing:.4px;color:var(--muted);
+  background:rgba(8,12,22,.92);border:1px solid var(--stroke);padding:5px 9px;border-radius:8px;
+  opacity:0;pointer-events:none;transition:.25s}
+.dots a:hover span{opacity:1;transform:translateY(-50%) translateX(0);color:var(--text)}
+
+/* ============================================================
+   LAYOUT & TIPOGRAFÍA
+   ============================================================ */
+main{position:relative;z-index:1}
+section{
+  position:relative;min-height:100vh;
+  padding:clamp(70px,9vh,120px) clamp(20px,6vw,110px);
+  display:flex;flex-direction:column;justify-content:center;
+}
+.wrap{width:100%;max-width:1180px;margin:0 auto}
+.kicker{display:inline-flex;align-items:center;gap:9px;font:600 12px/1 var(--mono);
+  letter-spacing:2.4px;text-transform:uppercase;color:var(--cyan);
+  border:1px solid rgba(57,225,255,.32);background:rgba(57,225,255,.07);
+  padding:8px 13px;border-radius:999px;margin-bottom:20px}
+.kicker::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--cyan);
+  box-shadow:0 0 10px var(--cyan);animation:blink 1.6s infinite}
+@keyframes blink{50%{opacity:.25}}
+.qnum{font:800 13px/1 var(--mono);color:var(--violet);letter-spacing:2px;margin-bottom:6px}
+
+h1{font-size:clamp(34px,5.2vw,70px);line-height:1.06;margin:0 0 18px;letter-spacing:-1.8px;font-weight:800;text-wrap:balance}
+h2{font-size:clamp(26px,4.2vw,48px);line-height:1.08;margin:0 0 16px;letter-spacing:-1.2px;font-weight:800}
+h3{font-size:clamp(17px,1.9vw,22px);margin:0 0 10px;font-weight:700;letter-spacing:-.3px}
+p{color:var(--muted);font-size:clamp(15px,1.35vw,17.5px);line-height:1.72;margin:0 0 14px;max-width:76ch}
+p strong,li strong{color:var(--text);font-weight:700}
+.grad{background:linear-gradient(100deg,var(--cyan),var(--violet) 45%,var(--pink));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  background-size:200% 100%;animation:hue 9s linear infinite}
+@keyframes hue{to{background-position:200% 0}}
+.lead{font-size:clamp(16px,1.65vw,20px);color:#b9c7e6}
+ul.clean{list-style:none;padding:0;margin:14px 0}
+ul.clean li{position:relative;padding-left:26px;margin-bottom:11px;color:var(--muted);
+  font-size:clamp(14px,1.3vw,16.5px);line-height:1.65}
+ul.clean li::before{content:"";position:absolute;left:0;top:.55em;width:8px;height:8px;border-radius:3px;
+  background:linear-gradient(135deg,var(--cyan),var(--violet));box-shadow:0 0 10px rgba(57,225,255,.6)}
+
+/* ============================================================
+   TARJETAS & COMPONENTES
+   ============================================================ */
+.grid{display:grid;gap:18px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:960px){.g2,.g3,.g4{grid-template-columns:1fr}}
+
+.card{
+  background:linear-gradient(180deg,var(--panel),var(--panel2));
+  border:1px solid var(--stroke);border-radius:var(--r);
+  padding:22px;backdrop-filter:blur(9px);position:relative;overflow:hidden;
+  transition:transform .4s cubic-bezier(.2,.7,.2,1),border-color .35s,box-shadow .35s;
+}
+.card:hover{transform:translateY(-5px);border-color:rgba(57,225,255,.4);
+  box-shadow:0 24px 60px -28px rgba(57,225,255,.45)}
+.card::after{content:"";position:absolute;left:0;top:0;height:2px;width:100%;
+  background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:0;transition:.4s}
+.card:hover::after{opacity:1}
+
+.pill{display:inline-block;font:700 10.5px/1 var(--mono);letter-spacing:1.6px;text-transform:uppercase;
+  padding:6px 10px;border-radius:999px;margin-bottom:14px}
+.pill.cyan{color:var(--cyan);background:rgba(57,225,255,.10);border:1px solid rgba(57,225,255,.3)}
+.pill.violet{color:var(--violet);background:rgba(139,123,255,.13);border:1px solid rgba(139,123,255,.34)}
+.pill.green{color:var(--green);background:rgba(56,224,122,.12);border:1px solid rgba(56,224,122,.32)}
+.pill.amber{color:var(--amber);background:rgba(255,176,32,.12);border:1px solid rgba(255,176,32,.35)}
+.pill.red{color:var(--red);background:rgba(255,77,109,.12);border:1px solid rgba(255,77,109,.34)}
+.pill.pink{color:var(--pink);background:rgba(255,95,210,.12);border:1px solid rgba(255,95,210,.34)}
+
+.mono{font-family:var(--mono)}
+.small{font-size:12.5px;color:var(--muted)}
+
+/* Reveal al scroll */
+.rv{opacity:0;transform:translateY(32px);transition:opacity .75s ease,transform .85s cubic-bezier(.2,.7,.2,1);
+  transition-delay:var(--d,0ms)}
+.rv.vis{opacity:1;transform:none}
+
+/* Botones */
+button.btn{font:700 13.5px/1 var(--font);color:#04070f;cursor:pointer;border:0;border-radius:12px;
+  padding:12px 18px;background:linear-gradient(135deg,var(--cyan),var(--violet));
+  transition:transform .2s,filter .2s,box-shadow .2s;box-shadow:0 12px 30px -14px rgba(57,225,255,.8);
+  display:inline-flex;align-items:center;justify-content:center;gap:8px}
+button.btn:hover{transform:translateY(-2px);filter:brightness(1.1)}
+button.btn.ghost{background:rgba(255,255,255,.04);color:var(--text);border:1px solid var(--stroke);box-shadow:none}
+button.btn.ghost:hover{background:rgba(255,255,255,.08);border-color:var(--cyan)}
+button.btn.amber{background:linear-gradient(135deg,var(--amber),#ff7700);color:#070a12;box-shadow:0 12px 30px -14px rgba(255,176,32,.8)}
+button.btn.green{background:linear-gradient(135deg,var(--green),#0ea5e9);color:#070a12;box-shadow:0 12px 30px -14px rgba(56,224,122,.8)}
+button.btn.red{background:linear-gradient(135deg,#ff5f7d,#b4183a);color:#fff;box-shadow:0 12px 30px -14px rgba(255,77,109,.8)}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+
+/* ============================================================
+   HERO CANVAS & AUTORES
+   ============================================================ */
+.hero-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:40px;align-items:stretch}
+@media(max-width:960px){.hero-grid{grid-template-columns:1fr}}
+.hero-visual{display:flex;min-height:380px}
+.hero-canvas{width:100%;height:100%;min-height:380px;border-radius:var(--r);border:1px solid var(--stroke);
+  background:radial-gradient(120% 120% at 30% 20%,rgba(57,225,255,.08),transparent 60%),rgba(6,10,20,.65)}
+.authors{margin-top:28px;display:flex;gap:14px;flex-wrap:wrap}
+.author{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--stroke);
+  border-radius:14px;padding:10px 15px}
+.avatar{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-weight:800;font-size:13.5px;
+  color:#04070f;background:linear-gradient(135deg,var(--cyan),var(--violet))}
+.author b{display:block;font-size:13.5px}
+.author em{font-style:normal;font-size:11px;color:var(--muted)}
+.scroll-cue{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);text-align:center;
+  color:var(--muted);font:600 11px/1 var(--mono);letter-spacing:2px}
+.scroll-cue i{display:block;width:22px;height:34px;border:1px solid var(--stroke);border-radius:12px;margin:8px auto 0;position:relative}
+.scroll-cue i::after{content:"";position:absolute;left:50%;top:7px;width:4px;height:7px;border-radius:3px;
+  background:var(--cyan);transform:translateX(-50%);animation:wheel 1.7s infinite}
+@keyframes wheel{0%{opacity:0;transform:translate(-50%,-3px)}35%{opacity:1}100%{opacity:0;transform:translate(-50%,13px)}}
+
+/* ============================================================
+   PIPELINE DE PROXIES (Sección 2)
+   ============================================================ */
+.proxy-pipeline{
+  display:grid;
+  grid-template-columns:1fr auto 1fr auto 1fr auto 1fr auto 1fr;
+  gap:8px;align-items:center;margin:18px 0;
+}
+@media(max-width:880px){
+  .proxy-pipeline{grid-template-columns:1fr;gap:10px}
+  .proxy-pipeline .p-arrow{transform:rotate(90deg);margin:4px 0}
+}
+.p-node{
+  background:var(--panel);border:1px solid var(--stroke);border-radius:14px;
+  padding:14px 10px;text-align:center;transition:all .3s ease;
+}
+.p-node b{display:block;font-size:13px;color:var(--text)}
+.p-node em{font-style:normal;font-size:10.5px;color:var(--muted);display:block;margin-top:3px}
+.p-node.active{border-color:var(--cyan);box-shadow:0 0 24px -6px var(--cyan);transform:scale(1.04)}
+.p-node.blocked{border-color:var(--red);box-shadow:0 0 24px -6px var(--red);background:rgba(255,77,109,.1)}
+.p-node.hit{border-color:var(--green);box-shadow:0 0 24px -6px var(--green);background:rgba(56,224,122,.1)}
+.p-arrow{color:var(--muted);font-size:18px;text-align:center;animation:nudge 1.6s ease-in-out infinite}
+@keyframes nudge{50%{transform:translateX(5px);color:var(--cyan)}}
+
+.pipeline-log{
+  margin-top:14px;padding:12px 16px;border-radius:12px;font-size:13px;
+  border:1px solid var(--stroke);background:rgba(0,0,0,.35);font-family:var(--mono);
+}
+
+/* ============================================================
+   INSPECTOR DE MENSAJES (Sección 3)
+   ============================================================ */
+.tabs{display:inline-flex;gap:6px;padding:4px;border:1px solid var(--stroke);border-radius:12px;background:rgba(0,0,0,.35);margin-bottom:14px}
+.tabs button{font:700 12px/1 var(--font);color:var(--muted);background:transparent;border:0;cursor:pointer;
+  padding:8px 14px;border-radius:8px;transition:.22s}
+.tabs button.active{color:#04070f;background:linear-gradient(135deg,var(--cyan),var(--violet))}
+
+.message-box{
+  font-family:var(--mono);font-size:12.5px;line-height:1.7;
+  background:rgba(4,7,15,.8);border:1px solid var(--stroke);border-radius:14px;
+  padding:18px;overflow-x:auto;position:relative;
+}
+.msg-part{
+  padding:3px 6px;border-radius:6px;cursor:pointer;transition:all .2s;
+  display:block;margin:2px 0;border:1px solid transparent;
+}
+.msg-part:hover, .msg-part.focused{
+  background:rgba(57,225,255,.1);border-color:rgba(57,225,255,.4);transform:translateX(3px);
+}
+.msg-desc-panel{
+  border:1px solid var(--stroke);border-radius:14px;background:var(--panel);
+  padding:20px;height:100%;display:flex;flex-direction:column;justify-content:space-between;
+}
+
+/* ============================================================
+   SIMULADOR & EXPLORADOR DE ESTADOS (Sección 4)
+   ============================================================ */
+.sim-grid{display:grid;grid-template-columns:1fr 1.15fr;gap:20px}
+@media(max-width:960px){.sim-grid{grid-template-columns:1fr}}
+
+.input-group{margin-bottom:12px}
+.input-label{display:block;font:600 11px/1 var(--mono);color:var(--muted);margin-bottom:6px;letter-spacing:1px;text-transform:uppercase}
+.sim-select, .sim-input, .sim-textarea{
+  width:100%;background:rgba(0,0,0,.3);border:1px solid var(--stroke);border-radius:10px;
+  padding:10px 12px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;
+  transition:border-color .2s;
+}
+.sim-select:focus, .sim-input:focus, .sim-textarea:focus{border-color:var(--cyan)}
+
+.status-badge{
+  font:700 12px/1 var(--mono);padding:6px 12px;border-radius:999px;
+  border:1px solid var(--stroke);display:inline-flex;align-items:center;gap:6px;
+}
+.status-badge.s2xx{color:var(--green);border-color:rgba(56,224,122,.4);background:rgba(56,224,122,.1)}
+.status-badge.s3xx{color:var(--cyan);border-color:rgba(57,225,255,.4);background:rgba(57,225,255,.1)}
+.status-badge.s4xx{color:var(--amber);border-color:rgba(255,176,32,.4);background:rgba(255,176,32,.1)}
+.status-badge.s5xx{color:var(--red);border-color:rgba(255,77,109,.4);background:rgba(255,77,109,.1)}
+
+/* ============================================================
+   EVOLUCIÓN DE HTTP Y COMPARATIVA DE VELOCIDAD (Sección 5)
+   ============================================================ */
+.streams-track{
+  border:1px solid var(--stroke);border-radius:14px;background:rgba(0,0,0,.3);
+  padding:16px;margin:16px 0;position:relative;overflow:hidden;
+}
+.stream-bar{height:20px;border-radius:6px;background:rgba(255,255,255,.05);margin-bottom:8px;position:relative;overflow:hidden}
+.stream-fill{height:100%;width:0;border-radius:6px;transition:width .8s cubic-bezier(.2,.8,.2,1)}
+
+/* ============================================================
+   QUIZ & CIERRE
+   ============================================================ */
+.quiz-opt{
+  width:100%;text-align:left;background:var(--panel);border:1px solid var(--stroke);
+  border-radius:12px;padding:14px 18px;margin-bottom:10px;color:var(--text);cursor:pointer;
+  font-size:14px;transition:all .2s;display:block;
+}
+.quiz-opt:hover{border-color:var(--cyan);background:rgba(57,225,255,.06);transform:translateX(4px)}
+.quiz-opt.correct{border-color:var(--green);background:rgba(56,224,122,.15);color:#fff}
+.quiz-opt.wrong{border-color:var(--red);background:rgba(255,77,109,.15);color:#fff}
+
+.footer{text-align:center;padding:60px 20px 80px;color:var(--muted);font-size:13px}
+.tag{display:inline-block;font:600 11px/1 var(--mono);letter-spacing:1.6px;text-transform:uppercase;
+  color:var(--muted);border:1px solid var(--stroke);padding:7px 12px;border-radius:999px;margin:0 4px 8px}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+
+<!-- Fondo global interactivo -->
+<div class="bg-fx">
+  <div class="grid"></div>
+  <div class="glow blob-1"></div><div class="glow blob-2"></div><div class="glow blob-3"></div>
+</div>
+
+<!-- Barra de progreso superior -->
+<div class="progress"><i id="bar"></i></div>
+
+<!-- Navegación lateral de puntos -->
+<nav class="dots" id="dots" aria-label="Navegación de la presentación">
+  <a href="#hero"   data-l="Inicio"><span>Inicio</span></a>
+  <a href="#s1"     data-l="¿Qué es HTTP?"><span>1 · ¿Qué es HTTP?</span></a>
+  <a href="#s2"     data-l="Proxies y Servidor"><span>2 · Proxies y Arquitectura</span></a>
+  <a href="#s3"     data-l="Anatomía de Mensajes"><span>3 · Anatomía de Mensajes</span></a>
+  <a href="#s4"     data-l="Laboratorio y Códigos"><span>4 · Laboratorio HTTP</span></a>
+  <a href="#s5"     data-l="Evolución HTTP/2-3"><span>5 · Evolución HTTP/1 a 3</span></a>
+  <a href="#s6"     data-l="Conclusiones y Quiz"><span>6 · Conclusiones y Quiz</span></a>
+</nav>
+
+<main>
+
+<!-- ================= HERO ================= -->
+<section id="hero">
+  <div class="wrap">
+    <div class="hero-grid">
+      <div>
+        <div class="kicker rv">ARQUITECTURA WEB · MDN DOCS · 2026</div>
+        <h1 class="rv" style="--d:80ms">HTTP <span class="grad">&amp;</span> Aspectos Básicos<br>
+          de la <span class="grad">Comunicación Web</span></h1>
+        <p class="lead rv" style="--d:170ms">
+          La especificación oficial de MDN explicada paso a paso: cómo viajan los paquetes entre el 
+          <strong>User-Agent</strong>, los <strong>Proxies</strong> y el <strong>Servidor</strong>, 
+          por qué es un protocolo sin estado (pero con sesiones), y la estructura exacta de cada petición en internet.
+        </p>
+
+        <div class="authors rv" style="--d:260ms">
+          <div class="author"><div class="avatar">OG</div><div><b>Oscar David Gómez</b><em>Aprendiz</em></div></div>
+        </div>
+      </div>
+
+      <div class="rv hero-visual" style="--d:200ms">
+        <canvas id="heroCanvas" class="hero-canvas"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="scroll-cue">DESLIZA<i></i></div>
+</section>
+
+<!-- ================= 1. ¿QUÉ ES HTTP? ================= -->
+<section id="s1">
+  <div class="wrap">
+    <div class="qnum rv">MÓDULO 01</div>
+    <h2 class="rv" style="--d:60ms">¿Qué es HTTP y cuáles son sus pilares?</h2>
+    <p class="rv" style="--d:120ms">
+      <strong>HTTP (Hypertext Transfer Protocol)</strong> es un protocolo de la <strong>capa de aplicación</strong> 
+      diseñado para transmitir recursos hipermedia. Sigue un modelo <strong>cliente-servidor</strong> estricto, 
+      donde el flujo siempre comienza con una petición enviada por el navegador.
+    </p>
+
+    <div class="grid g2 rv" style="--d:180ms;margin:22px 0">
+      <div class="card">
+        <span class="pill cyan">Capa de Aplicación</span>
+        <h3>Simple y legible por humanos</h3>
+        <p style="margin-bottom:0">
+          A diferencia de los protocolos binarios crudos de capas inferiores, los mensajes HTTP/1.1 se diseñaron 
+          para ser <strong>legibles y depurables</strong> directamente por personas, viajando en texto plano estructurado.
+        </p>
+        <ul class="clean" style="margin-bottom:0">
+          <li>Corre sobre la capa de transporte (TCP o QUIC/UDP)</li>
+          <li>Independiente del tipo de contenido transportado</li>
+          <li>Inspeccionable desde la pestaña Red del navegador</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <span class="pill violet">Extensible por Naturaleza</span>
+        <h3>Cabeceras (HTTP Headers)</h3>
+        <p style="margin-bottom:0">
+          HTTP puede incorporar nuevas capacidades sin romper versiones anteriores. Si un servidor o navegador 
+          no reconoce una cabecera personalizada o reciente, simplemente la ignora de forma segura.
+        </p>
+        <ul class="clean" style="margin-bottom:0">
+          <li>Permite control de caché granular (<span class="mono">Cache-Control</span>)</li>
+          <li>Negociación de formato (<span class="mono">Accept</span>, <span class="mono">Content-Type</span>)</li>
+          <li>Políticas de seguridad y CORS para APIs cruzadas</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="grid g2 rv" style="--d:240ms">
+      <div class="card" style="border-color:rgba(255,176,32,.3)">
+        <span class="pill amber">Stateless pero con Estado</span>
+        <h3>Sin estado... ¿pero con sesiones?</h3>
+        <p style="margin-bottom:0">
+          HTTP es <strong>sin estado (stateless)</strong>: no guarda memoria entre dos solicitudes consecutivas. 
+          Para resolver esto sin perder velocidad, MDN documenta el uso de las <strong>Cookies</strong> y cabeceras 
+          <span class="mono">Set-Cookie</span>, permitiendo crear carritos de compra y logins de usuario.
+        </p>
+      </div>
+
+      <div class="card" style="border-color:rgba(56,224,122,.3)">
+        <span class="pill green">Ciclo de Conexión</span>
+        <h3>Apertura, Transmisión y Reuso</h3>
+        <p style="margin-bottom:0">
+          Antes de enviar un mensaje HTTP, el cliente abre una conexión de transporte mediante un <strong>handshake TCP</strong> 
+          (más TLS si es HTTPS). En HTTP/1.1 las conexiones son <strong>persistentes</strong> (<span class="mono">Keep-Alive</span>) 
+          para no pagar el costo de conexión en cada archivo.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 2. PROXIES Y ARQUITECTURA ================= -->
+<section id="s2">
+  <div class="wrap">
+    <div class="qnum rv">MÓDULO 02</div>
+    <h2 class="rv" style="--d:60ms">Componentes de un Sistema HTTP</h2>
+    <p class="rv" style="--d:120ms">
+      Según MDN, un sistema HTTP no es solo una línea directa entre el navegador y el servidor. 
+      Existe una cadena de <strong>computadoras intermedias (Proxies)</strong> que inspeccionan, filtran o aceleran el tráfico.
+    </p>
+
+    <!-- Pipeline Interactivo de Proxies -->
+    <div class="card rv" style="--d:180ms">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <div>
+          <span class="pill violet">Simulador del Camino de Red</span>
+          <h3 style="margin:0">Cadena de Proxies e Intermediarios</h3>
+        </div>
+        <div class="small mono" id="pipelineStatus">Listo para transmitir</div>
+      </div>
+
+      <div class="proxy-pipeline" id="pipelineTrack">
+        <div class="p-node" id="nodeClient"><b>User-Agent</b><em>Navegador / App</em></div>
+        <div class="p-arrow">➜</div>
+        <div class="p-node" id="nodeCDN"><b>Caché CDN</b><em>Edge Proxy</em></div>
+        <div class="p-arrow">➜</div>
+        <div class="p-node" id="nodeWAF"><b>WAF Firewall</b><em>Seguridad</em></div>
+        <div class="p-arrow">➜</div>
+        <div class="p-node" id="nodeLB"><b>Balanceador</b><em>Load Balancer</em></div>
+        <div class="p-arrow">➜</div>
+        <div class="p-node" id="nodeServer"><b>Servidor Web</b><em>Backend / DB</em></div>
+      </div>
+
+      <div class="pipeline-log" id="pipeLog">
+        > Presiona uno de los escenarios a continuación para observar cómo se comporta la cadena de intermediarios.
+      </div>
+
+      <div class="btn-row">
+        <button class="btn" onclick="runPipeline('normal')">🟢 Petición Estándar (Hasta el Servidor)</button>
+        <button class="btn green" onclick="runPipeline('cache')">⚡ Acierto de Caché (Responde el CDN)</button>
+        <button class="btn red" onclick="runPipeline('blocked')">🛡️ Bloqueo por Seguridad (WAF 403)</button>
+      </div>
+    </div>
+
+    <div class="grid g3 rv" style="--d:240ms;margin-top:22px">
+      <div class="card">
+        <span class="pill cyan">El User-Agent</span>
+        <p style="margin:0">Cualquier herramienta que actúe en nombre del usuario: Chrome, Firefox, curl o un script. <strong>Siempre es quien inicia la conexión</strong>.</p>
+      </div>
+      <div class="card">
+        <span class="pill amber">Las Funciones del Proxy</span>
+        <p style="margin:0">Almacenamiento en caché (CDN), filtrado contra ataques (firewalls), balanceo de carga entre réplicas y autenticación previa.</p>
+      </div>
+      <div class="card">
+        <span class="pill green">El Servidor Web</span>
+        <p style="margin:0">Atiende la solicitud, ejecuta lógica si es dinámica y devuelve el recurso final con la cabecera adecuada (<span class="mono">Content-Type</span>).</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 3. ANATOMÍA DE MENSAJES ================= -->
+<section id="s3">
+  <div class="wrap">
+    <div class="qnum rv">MÓDULO 03</div>
+    <h2 class="rv" style="--d:60ms">Anatomía de los Mensajes HTTP</h2>
+    <p class="rv" style="--d:120ms">
+      Los mensajes HTTP siguen una arquitectura textual de <strong>4 componentes obligatorios</strong> según la especificación RFC y MDN. 
+      Haz clic sobre cualquier bloque para inspeccionar su función técnica.
+    </p>
+
+    <div class="tabs rv" style="--d:160ms">
+      <button id="tabReq" class="active" onclick="switchMsgTab('req')">Petición (HTTP Request)</button>
+      <button id="tabRes" onclick="switchMsgTab('res')">Respuesta (HTTP Response)</button>
+    </div>
+
+    <div class="grid g2 rv" style="--d:210ms">
+      <!-- Visor de Código Interactivo -->
+      <div class="message-box" id="msgBox">
+        <!-- Generado dinámicamente -->
+      </div>
+
+      <!-- Panel explicativo -->
+      <div class="msg-desc-panel">
+        <div>
+          <span class="pill cyan" id="msgPill">1. LÍNEA DE INICIO</span>
+          <h3 id="msgTitle" style="color:var(--text);margin-bottom:8px">Línea de Petición (Request Line)</h3>
+          <p id="msgExplain" style="font-size:14px;color:var(--muted);line-height:1.68">
+            Haz clic o pasa el cursor sobre las líneas coloreadas a la izquierda para ver el desglose técnico oficial de MDN.
+          </p>
+        </div>
+        <div style="background:rgba(255,255,255,.025);border:1px solid var(--stroke);border-radius:10px;padding:12px;margin-top:14px">
+          <span class="mono small" style="color:var(--cyan)">Tip de MDN:</span>
+          <span class="small" style="display:block;margin-top:4px">
+            En HTTP/1.1 la cabecera <code class="mono" style="color:#fff">Host:</code> es la <strong>única estrictamente obligatoria</strong> en toda petición.
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 4. LABORATORIO EN VIVO ================= -->
+<section id="s4">
+  <div class="wrap">
+    <div class="qnum rv">MÓDULO 04</div>
+    <h2 class="rv" style="--d:60ms">Laboratorio en Vivo &amp; Códigos de Estado</h2>
+    <p class="rv" style="--d:120ms">
+      Ejecuta solicitudes simuladas contra un servidor HTTP. Observa la negociación, el encabezado devuelto y el código de respuesta.
+    </p>
+
+    <div class="card rv" style="--d:180ms">
+      <div class="sim-grid">
+        <!-- Controles -->
+        <div>
+          <span class="pill cyan">Configurador del Request</span>
+
+          <div class="input-group">
+            <label class="input-label">Plantillas Rápidas:</label>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn ghost" style="padding:6px 10px;font-size:11.5px" onclick="loadSimPreset(200)">200 OK</button>
+              <button class="btn ghost" style="padding:6px 10px;font-size:11.5px" onclick="loadSimPreset(201)">201 Created</button>
+              <button class="btn ghost" style="padding:6px 10px;font-size:11.5px" onclick="loadSimPreset(304)">304 Not Mod.</button>
+              <button class="btn ghost" style="padding:6px 10px;font-size:11.5px" onclick="loadSimPreset(404)">404 Not Found</button>
+              <button class="btn ghost" style="padding:6px 10px;font-size:11.5px" onclick="loadSimPreset(500)">500 Error</button>
+            </div>
+          </div>
+
+          <div class="input-group" style="display:flex;gap:8px">
+            <div style="width:110px">
+              <label class="input-label">Método</label>
+              <select id="simMethod" class="sim-select" onchange="toggleBodyInput()">
+                <option value="GET">GET</option>
+                <option value="POST">POST</option>
+                <option value="PUT">PUT</option>
+                <option value="DELETE">DELETE</option>
+              </select>
+            </div>
+            <div style="flex:1">
+              <label class="input-label">Ruta de destino</label>
+              <input id="simPath" class="sim-input" value="/api/usuarios">
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label">Cabeceras enviadas:</label>
+            <textarea id="simHeaders" class="sim-textarea" rows="2">Host: api.ejemplo.com&#10;Accept: application/json</textarea>
+          </div>
+
+          <div class="input-group" id="bodyGroup" style="display:none">
+            <label class="input-label">Cuerpo JSON (Body):</label>
+            <textarea id="simBody" class="sim-textarea" rows="2">{"nombre":"Carlos Gómez","rol":"Admin"}</textarea>
+          </div>
+
+          <button class="btn" style="width:100%" id="btnSendSim" onclick="sendSimRequest()">
+            🚀 Transmitir Solicitud HTTP
+          </button>
+        </div>
+
+        <!-- Salida del Servidor -->
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <span class="pill green" style="margin:0">Respuesta Servidor</span>
+            <div id="simBadge" class="status-badge s2xx">200 OK</div>
+          </div>
+
+          <div class="message-box" id="simOutput" style="min-height:210px">
+HTTP/1.1 200 OK
+Date: Thu, 29 Oct 2026 14:00:00 GMT
+Server: nginx / 1.24.0 (Ubuntu)
+Content-Type: application/json; charset=utf-8
+Cache-Control: public, max-age=3600
+
+{
+  "status": "exitoso",
+  "datos": [
+    { "id": 1, "nombre": "Protocolo HTTP", "tipo": "RFC 9110" }
+  ]
+}
+          </div>
+
+          <div class="small mono" id="simExplain" style="margin-top:10px;color:var(--muted)">
+            > Solicitud completada exitosamente. El servidor respondió con el recurso solicitado.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 5. EVOLUCIÓN: HTTP/1.1 vs HTTP/2 vs HTTP/3 ================= -->
+<section id="s5">
+  <div class="wrap">
+    <div class="qnum rv">MÓDULO 05</div>
+    <h2 class="rv" style="--d:60ms">Evolución: De Bloqueo a Multiplexación y QUIC</h2>
+    <p class="rv" style="--d:120ms">
+      El mayor desafío de la historia web ha sido la <strong>latencia</strong>. Observa cómo cada generación 
+      resolvió el cuello de botella del transporte:
+    </p>
+
+    <div class="card rv" style="--d:180ms">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:12px">
+        <div>
+          <span class="pill amber">Simulador Comparativo de Conexiones</span>
+          <h3 style="margin:0">Descargando 6 recursos web (CSS, JS, Imágenes)</h3>
+        </div>
+        <div class="tabs" id="protoTabs">
+          <button class="active" onclick="setProtoMode('http1')">HTTP/1.1 (En Cola)</button>
+          <button onclick="setProtoMode('http2')">HTTP/2 (Multiplexado)</button>
+          <button onclick="setProtoMode('http3')">HTTP/3 (QUIC / UDP)</button>
+        </div>
+      </div>
+
+      <div class="streams-track" id="streamsTrack">
+        <!-- 6 barras simulando 6 recursos -->
+        <div class="stream-bar"><div class="stream-fill" id="sb1"></div></div>
+        <div class="stream-bar"><div class="stream-fill" id="sb2"></div></div>
+        <div class="stream-bar"><div class="stream-fill" id="sb3"></div></div>
+        <div class="stream-bar"><div class="stream-fill" id="sb4"></div></div>
+        <div class="stream-bar"><div class="stream-fill" id="sb5"></div></div>
+        <div class="stream-bar"><div class="stream-fill" id="sb6"></div></div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+        <div class="small mono" id="protoInfo">
+          HTTP/1.1: Bloqueo de cabeza de línea. Los recursos deben esperar a que el anterior termine.
+        </div>
+        <button class="btn" onclick="runProtoBenchmark()">▶ Probar Velocidad de Carga</button>
+      </div>
+    </div>
+
+    <div class="grid g3 rv" style="--d:240ms;margin-top:22px">
+      <div class="card">
+        <span class="pill red">HTTP/1.1 (1999)</span>
+        <h3>Head-of-Line Blocking</h3>
+        <p style="margin:0">Texto plano. Solo puede enviar una petición a la vez por conexión. Si la primera se retrasa, las demás quedan congeladas en cola.</p>
+      </div>
+      <div class="card">
+        <span class="pill cyan">HTTP/2 (2015)</span>
+        <h3>Multiplexación Binaria</h3>
+        <p style="margin:0">Convierte los mensajes en tramas binarias intercaladas. Todas las peticiones viajan en paralelo a través de <strong>una única conexión TCP</strong>.</p>
+      </div>
+      <div class="card">
+        <span class="pill green">HTTP/3 (2022+)</span>
+        <h3>QUIC sobre UDP</h3>
+        <p style="margin:0">Elimina el bloqueo TCP en la capa de transporte. Si se pierde un paquete WiFi/móvil, las demás transmisiones continúan sin detenerse.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 6. EVALUACIÓN Y QUIZ ================= -->
+<section id="s6">
+  <div class="wrap">
+    <div class="qnum rv">EVALUACIÓN &amp; CONCLUSIONES</div>
+    <h2 class="rv" style="--d:60ms">Pon a prueba tu conocimiento de MDN</h2>
+    <p class="rv" style="--d:120ms">
+      Responde las preguntas clave sobre el protocolo y sus mecanismos fundamentales:
+    </p>
+
+    <div class="card rv" style="--d:180ms;max-width:820px;margin:0 auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <span class="pill violet" id="quizProg">PREGUNTA 1 DE 3</span>
+        <span class="mono small" id="quizScore">Aciertos: 0</span>
+      </div>
+
+      <h3 id="quizQuestion" style="margin-bottom:16px;color:var(--text)">
+        ¿Por qué se clasifica a HTTP como un protocolo "stateless" (sin estado)?
+      </h3>
+
+      <div id="quizOptions">
+        <!-- Opciones generadas por JS -->
+      </div>
+
+      <div id="quizFeedback" style="display:none;padding:12px 16px;border-radius:10px;font-size:13px;margin-top:14px;border:1px solid transparent"></div>
+
+      <div class="btn-row" style="margin-top:16px">
+        <button class="btn" id="btnNextQuiz" style="display:none" onclick="nextQuizQuestion()">Siguiente Pregunta ➜</button>
+      </div>
+    </div>
+
+    <div class="footer rv" style="--d:240ms">
+      <div>
+        <span class="tag">HTTP/1.1</span><span class="tag">HTTP/2</span>
+        <span class="tag">HTTP/3 (QUIC)</span><span class="tag">CORS</span>
+        <span class="tag">Cookies</span><span class="tag">Proxies</span>
+      </div>
+      <div style="margin-top:14px;font-size:15px;color:#c7d3ee">
+        Presentado por <strong>Oscar David Gómez</strong>
+      </div>
+      <div style="margin-top:6px">SENA · 2026</div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<script>
+/* ============================================================
+   0. UTILIDADES & INICIALIZACIÓN
+   ============================================================ */
+const $  = (s,c=document)=>c.querySelector(s);
+const $$ = (s,c=document)=>[...c.querySelectorAll(s)];
+
+/* Barra de progreso y navegación lateral */
+const bar = $('#bar');
+const dots = $$('#dots a');
+function onScroll(){
+  const scrollY = window.scrollY;
+  const max = document.documentElement.scrollHeight - innerHeight;
+  bar.style.width = (max>0 ? (scrollY/max)*100 : 0) + '%';
+  let act = 0;
+  $$('main section').forEach((s,i)=>{
+    const r = s.getBoundingClientRect();
+    if(r.top <= innerHeight*0.42) act = i;
+  });
+  dots.forEach((d,i)=>d.classList.toggle('on', i===act));
+}
+addEventListener('scroll', onScroll, {passive:true});
+addEventListener('resize', onScroll);
+
+/* Reveal on scroll */
+const io = new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){ e.target.classList.add('vis'); io.unobserve(e.target); }
+  });
+},{threshold:.15, rootMargin:'0px 0px -6% 0px'});
+$$('.rv').forEach(el=>io.observe(el));
+
+/* ============================================================
+   1. CANVAS DEL HERO — BUS DE PAQUETES HTTP
+   ============================================================ */
+(function heroCanvas(){
+  const cv = $('#heroCanvas');
+  const ctx = cv.getContext('2d');
+  let W=0, H=0, dpr=1;
+
+  function size(){
+    dpr = Math.min(devicePixelRatio||1, 2);
+    const r = cv.getBoundingClientRect(); W=r.width; H=r.height;
+    const w=Math.max(1,Math.round(W*dpr)), h=Math.max(1,Math.round(H*dpr));
+    if(w===cv.width && h===cv.height) return;
+    cv.width=w; cv.height=h; ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+
+  const packetTypes = [
+    { label: "GET /index.html", color: "#39e1ff", dir: 1 },
+    { label: "POST /login", color: "#ffb020", dir: 1 },
+    { label: "200 OK", color: "#38e07a", dir: -1 },
+    { label: "304 Not Modified", color: "#39e1ff", dir: -1 },
+    { label: "404 Not Found", color: "#ff4d6d", dir: -1 }
+  ];
+
+  const packets = [];
+  for(let i=0; i<10; i++){
+    packets.push({
+      item: packetTypes[Math.floor(Math.random()*packetTypes.length)],
+      t: Math.random(),
+      lane: Math.floor(Math.random()*4),
+      speed: 0.12 + Math.random()*0.15
+    });
+  }
+
+  let last = performance.now();
+  function loop(now){
+    size();
+    const dt = Math.min(0.1, (now - last)/1000);
+    last = now;
+    ctx.clearRect(0,0,W,H);
+
+    // Rejilla de fondo suave
+    ctx.strokeStyle = 'rgba(255,255,255,.04)';
+    ctx.lineWidth = 1;
+    for(let x=0; x<W; x+=32){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+    for(let y=0; y<H; y+=32){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+
+    // Canales de transmisión
+    const lanes = 4;
+    const gap = H / (lanes + 1);
+    for(let l=0; l<lanes; l++){
+      const y = gap*(l+1);
+      const grad = ctx.createLinearGradient(0,0,W,0);
+      grad.addColorStop(0, 'rgba(57,225,255,.05)');
+      grad.addColorStop(0.5, 'rgba(139,123,255,.25)');
+      grad.addColorStop(1, 'rgba(56,224,122,.05)');
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(20, y); ctx.lineTo(W-20, y); ctx.stroke();
+
+      // Nodos terminales
+      ctx.fillStyle = 'rgba(255,255,255,.15)';
+      ctx.beginPath(); ctx.arc(20, y, 4, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(W-20, y, 4, 0, Math.PI*2); ctx.fill();
+    }
+
+    // Dibujar paquetes
+    packets.forEach(p => {
+      p.t += p.speed * dt;
+      if(p.t > 1) {
+        p.t = 0;
+        p.item = packetTypes[Math.floor(Math.random()*packetTypes.length)];
+        p.lane = Math.floor(Math.random()*lanes);
+      }
+      const y = gap * (p.lane + 1);
+      const x = p.item.dir === 1 ? (30 + p.t * (W - 100)) : (W - 30 - p.t * (W - 100));
+
+      // Glow del paquete
+      ctx.fillStyle = p.item.color;
+      ctx.shadowColor = p.item.color;
+      ctx.shadowBlur = 10;
+      ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI*2); ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Etiqueta
+      ctx.font = '600 10.5px monospace';
+      ctx.fillStyle = p.item.color;
+      ctx.fillText(p.item.label, x - 20, y - 10);
+    });
+
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+
+/* ============================================================
+   2. PIPELINE DE PROXIES (Sección 2)
+   ============================================================ */
+function runPipeline(mode){
+  const nodes = ['nodeClient', 'nodeCDN', 'nodeWAF', 'nodeLB', 'nodeServer'];
+  const log = $('#pipeLog');
+  const status = $('#pipelineStatus');
+
+  // Reset
+  nodes.forEach(id => {
+    $(`#${id}`).classList.remove('active', 'blocked', 'hit');
+  });
+
+  if(mode === 'normal'){
+    status.innerText = "Transmisión estándar hasta Servidor Web";
+    log.innerHTML = `<span style="color:var(--cyan)">1. Cliente:</span> Envía petición HTTP GET /datos. Consultando DNS...`;
+    $('#nodeClient').classList.add('active');
+
+    setTimeout(() => {
+      $('#nodeCDN').classList.add('active');
+      log.innerHTML += `<br><span style="color:var(--muted)">2. CDN:</span> Recurso no está en caché (Cache Miss). Reenviando paquete...`;
+    }, 600);
+
+    setTimeout(() => {
+      $('#nodeWAF').classList.add('active');
+      log.innerHTML += `<br><span style="color:var(--muted)">3. WAF:</span> Firmas y cabeceras inspeccionadas. No hay amenazas.`;
+    }, 1200);
+
+    setTimeout(() => {
+      $('#nodeLB').classList.add('active');
+      log.innerHTML += `<br><span style="color:var(--muted)">4. Balanceador:</span> Dirigiendo tráfico a Nodo Server #2 (baja carga).`;
+    }, 1800);
+
+    setTimeout(() => {
+      $('#nodeServer').classList.add('active');
+      log.innerHTML += `<br><span style="color:var(--green)">5. Servidor Web:</span> Genera respuesta 200 OK con payload JSON y la devuelve al cliente.`;
+    }, 2400);
+
+  } else if(mode === 'cache'){
+    status.innerText = "Acierto de Caché (Cache Hit)";
+    log.innerHTML = `<span style="color:var(--cyan)">1. Cliente:</span> Envía GET /app.css con If-None-Match "etag123"`;
+    $('#nodeClient').classList.add('active');
+
+    setTimeout(() => {
+      $('#nodeCDN').classList.add('hit');
+      log.innerHTML += `<br><span style="color:var(--green)">2. CDN (Cache Hit):</span> ¡Recurso válido en borde! El CDN responde <strong>304 Not Modified</strong> directamente. El servidor central nunca fue molestado.`;
+      status.innerText = "Resuelto en el Borde (Baja latencia)";
+    }, 700);
+
+  } else if(mode === 'blocked'){
+    status.innerText = "Petición Maliciosa Bloqueada";
+    log.innerHTML = `<span style="color:var(--cyan)">1. Cliente:</span> Envía GET /api?q=' OR 1=1 --`;
+    $('#nodeClient').classList.add('active');
+
+    setTimeout(() => {
+      $('#nodeCDN').classList.add('active');
+      log.innerHTML += `<br><span style="color:var(--muted)">2. CDN:</span> Reenviando al firewall de aplicaciones...`;
+    }, 600);
+
+    setTimeout(() => {
+      $('#nodeWAF').classList.add('blocked');
+      log.innerHTML += `<br><span style="color:var(--red)">3. WAF (Alerta):</span> Inyección SQL detectada. Conexión cortada con <strong>403 Forbidden</strong>.`;
+      status.innerText = "Bloqueado por WAF";
+    }, 1200);
+  }
+}
+
+/* ============================================================
+   3. INSPECTOR DE MENSAJES (Sección 3)
+   ============================================================ */
+const msgContents = {
+  req: [
+    { line: 'POST /api/pedidos HTTP/1.1', key: 'sline', pill: '1. START LINE', title: 'Línea de Inicio (Request Line)', desc: 'Consta del Método (POST), el destino o Target URL (/api/pedidos) y la versión del protocolo (HTTP/1.1). Indica la acción a ejecutar.' },
+    { line: 'Host: tienda.com', key: 'host', pill: '2. HEADERS', title: 'Cabecera Host (Obligatoria)', desc: 'Es la única cabecera obligatoria en HTTP/1.1. Permite el alojamiento virtual (varios dominios en la misma dirección IP).' },
+    { line: 'Content-Type: application/json', key: 'ctype', pill: '2. HEADERS', title: 'Content-Type', desc: 'Indica al servidor cómo interpretar los bytes recibidos en el cuerpo (en este caso, JSON estructurado).' },
+    { line: 'Authorization: Bearer eyJhbGciOi...', key: 'auth', pill: '2. HEADERS', title: 'Authorization', desc: 'Credenciales de acceso para recursos protegidos, habitualmente tokens JWT o claves de API.' },
+    { line: '', key: 'crlf', pill: '3. LÍNEA EN BLANCO', title: 'Línea Vacía (CRLF Obligatoria)', desc: 'Un retorno de carro y salto de línea vacío separa formalmente las cabeceras del cuerpo del mensaje según la RFC.' },
+    { line: '{\n  "productoId": 104,\n  "cantidad": 2\n}', key: 'body', pill: '4. BODY (PAYLOAD)', title: 'Cuerpo de Petición', desc: 'Los datos concretos enviados por el cliente. Típico en POST, PUT y PATCH. No suele estar presente en GET.' }
+  ],
+  res: [
+    { line: 'HTTP/1.1 201 Created', key: 'sline', pill: '1. STATUS LINE', title: 'Línea de Estado', desc: 'Protocolo (HTTP/1.1), código numérico (201) y texto explicativo (Created). Indica que el recurso fue generado con éxito.' },
+    { line: 'Date: Thu, 29 Oct 2026 14:00:00 GMT', key: 'date', pill: '2. HEADERS', title: 'Cabecera Date', desc: 'Fecha y hora exactas en que el servidor originó la respuesta en formato estándar GMT.' },
+    { line: 'Location: /api/pedidos/992', key: 'loc', pill: '2. HEADERS', title: 'Cabecera Location', desc: 'MDN señala que cuando se devuelve 201 Created, esta cabecera contiene la URL directa del recurso recién creado.' },
+    { line: 'Content-Type: application/json', key: 'ctype', pill: '2. HEADERS', title: 'Content-Type', desc: 'Le dice al navegador o cliente qué motor debe procesar la respuesta (renderizar HTML, parsear JSON o decodificar imagen).' },
+    { line: '', key: 'crlf', pill: '3. LÍNEA EN BLANCO', title: 'Línea Vacía (CRLF)', desc: 'Separador estricto entre encabezados y cuerpo de datos entregado por el servidor.' },
+    { line: '{\n  "id": 992,\n  "estado": "confirmado"\n}', key: 'body', pill: '4. BODY', title: 'Cuerpo de Respuesta', desc: 'El contenido entregado: el JSON con los datos pedidos, el HTML de una web o un archivo binario.' }
+  ]
+};
+
+let currentTab = 'req';
+
+function switchMsgTab(tab){
+  currentTab = tab;
+  $('#tabReq').classList.toggle('active', tab === 'req');
+  $('#tabRes').classList.toggle('active', tab === 'res');
+  renderMessageBox();
+}
+
+function renderMessageBox(){
+  const box = $('#msgBox');
+  box.innerHTML = '';
+  const data = msgContents[currentTab];
+
+  data.forEach((item, idx) => {
+    const el = document.createElement('div');
+    el.className = 'msg-part';
+    if(item.line === ''){
+      el.innerHTML = '<span style="color:var(--muted);font-style:italic">// [Línea vacía obligatoria CRLF]</span>';
+    } else {
+      el.innerText = item.line;
+    }
+    el.onclick = () => focusMsgItem(item, el);
+    box.appendChild(el);
+    if(idx === 0) focusMsgItem(item, el);
+  });
+}
+
+function focusMsgItem(item, el){
+  $$('.msg-part').forEach(p => p.classList.remove('focused'));
+  el.classList.add('focused');
+  $('#msgPill').innerText = item.pill;
+  $('#msgTitle').innerText = item.title;
+  $('#msgExplain').innerText = item.desc;
+}
+
+renderMessageBox();
+
+/* ============================================================
+   4. SIMULADOR DE LABORATORIO (Sección 4)
+   ============================================================ */
+function toggleBodyInput(){
+  const method = $('#simMethod').value;
+  $('#bodyGroup').style.display = (method === 'POST' || method === 'PUT') ? 'block' : 'none';
+}
+
+function loadSimPreset(code){
+  if(code === 200){
+    $('#simMethod').value = 'GET';
+    $('#simPath').value = '/api/usuarios';
+  } else if(code === 201){
+    $('#simMethod').value = 'POST';
+    $('#simPath').value = '/api/usuarios';
+    $('#simBody').value = '{\n  "nombre": "Ana López",\n  "rol": "Editor"\n}';
+  } else if(code === 304){
+    $('#simMethod').value = 'GET';
+    $('#simPath').value = '/estilos/tema.css';
+    $('#simHeaders').value = 'Host: api.ejemplo.com\nIf-None-Match: "33a2f4"';
+  } else if(code === 404){
+    $('#simMethod').value = 'GET';
+    $('#simPath').value = '/recurso-que-no-existe';
+  } else if(code === 500){
+    $('#simMethod').value = 'GET';
+    $('#simPath').value = '/api/fallo-servidor';
+  }
+  toggleBodyInput();
+  sendSimRequest();
+}
+
+function sendSimRequest(){
+  const method = $('#simMethod').value;
+  const path = $('#simPath').value;
+  const headers = $('#simHeaders').value;
+  const btn = $('#btnSendSim');
+  const badge = $('#simBadge');
+  const out = $('#simOutput');
+  const exp = $('#simExplain');
+
+  btn.disabled = true;
+  btn.innerText = "Conectando TCP/TLS...";
+  out.innerText = "// Negociando handshake...";
+
+  setTimeout(() => {
+    btn.disabled = false;
+    btn.innerText = "🚀 Transmitir Solicitud HTTP";
+
+    let code = 200, text = "OK", bClass = "s2xx", payload = "", expText = "";
+
+    if(path.includes("fallo") || path.includes("500")){
+      code = 500; text = "Internal Server Error"; bClass = "s5xx";
+      payload = '{\n  "error": "Error crítico no controlado en la base de datos"\n}';
+      expText = "El servidor falló al procesar la petición debido a un error no capturado en su backend.";
+    } else if(path.includes("no-existe") || path.includes("404")){
+      code = 404; text = "Not Found"; bClass = "s4xx";
+      payload = '{\n  "error": "El endpoint o archivo no fue encontrado en el servidor"\n}';
+      expText = "El servidor analizó la ruta y no halló ningún archivo o controlador asociado.";
+    } else if(headers.includes("If-None-Match")){
+      code = 304; text = "Not Modified"; bClass = "s3xx";
+      payload = '// [Cuerpo vacío: El cliente debe usar su caché local]';
+      expText = "Optimización de red: Como el recurso no ha cambiado, no se gasta ancho de banda reenviándolo.";
+    } else if(method === "POST"){
+      code = 201; text = "Created"; bClass = "s2xx";
+      payload = '{\n  "mensaje": "Recurso registrado exitosamente",\n  "id": 841\n}';
+      expText = "Se creó un nuevo recurso en la base de datos y se notificó al cliente con 201.";
+    } else {
+      code = 200; text = "OK"; bClass = "s2xx";
+      payload = '{\n  "datos": ["Usuario #1", "Usuario #2"],\n  "total": 2\n}';
+      expText = "Petición procesada con éxito y recurso entregado.";
+    }
+
+    badge.className = `status-badge ${bClass}`;
+    badge.innerText = `${code} ${text}`;
+    out.innerText = `HTTP/1.1 ${code} ${text}
+Date: ${new Date().toUTCString()}
+Server: nginx / 1.24.0
+Content-Type: application/json; charset=utf-8
+
+${payload}`;
+    exp.innerText = `> ${expText}`;
+  }, 450);
+}
+
+/* ============================================================
+   5. EVOLUCIÓN: BENCHMARK VISUAL DE PROTOCOLOS (Sección 5)
+   ============================================================ */
+let protoMode = 'http1';
+function setProtoMode(m){
+  protoMode = m;
+  const buttons = $$('#protoTabs button');
+  buttons[0].classList.toggle('active', m === 'http1');
+  buttons[1].classList.toggle('active', m === 'http2');
+  buttons[2].classList.toggle('active', m === 'http3');
+
+  const info = $('#protoInfo');
+  if(m === 'http1') info.innerText = "HTTP/1.1: Bloqueo de cabeza de línea. Los recursos deben esperar a que el anterior termine.";
+  if(m === 'http2') info.innerText = "HTTP/2: Multiplexación sobre un único canal TCP. Todos los recursos fluyen en paralelo.";
+  if(m === 'http3') info.innerText = "HTTP/3: QUIC sobre UDP. Cero bloqueo de transporte ante pérdidas de paquetes.";
+}
+
+function runProtoBenchmark(){
+  const bars = [$('#sb1'), $('#sb2'), $('#sb3'), $('#sb4'), $('#sb5'), $('#sb6')];
+  bars.forEach(b => { b.style.transition = 'none'; b.style.width = '0%'; });
+
+  setTimeout(() => {
+    if(protoMode === 'http1'){
+      // Secuencial uno tras otro
+      bars.forEach((b, i) => {
+        setTimeout(() => {
+          b.style.transition = 'width 0.35s ease';
+          b.style.background = 'linear-gradient(90deg, var(--amber), var(--red))';
+          b.style.width = '100%';
+        }, i * 360);
+      });
+    } else if(protoMode === 'http2'){
+      // Todos juntos
+      bars.forEach((b, i) => {
+        b.style.transition = `width ${(0.5 + Math.random()*0.4).toFixed(2)}s ease`;
+        b.style.background = 'linear-gradient(90deg, var(--cyan), var(--violet))';
+        b.style.width = '100%';
+      });
+    } else {
+      // HTTP/3 ultra rápido
+      bars.forEach((b) => {
+        b.style.transition = 'width 0.38s cubic-bezier(.2,.8,.2,1)';
+        b.style.background = 'linear-gradient(90deg, var(--green), var(--cyan))';
+        b.style.width = '100%';
+      });
+    }
+  }, 50);
+}
+
+/* ============================================================
+   6. QUIZ INTERACTIVO (Sección 6)
+   ============================================================ */
+const quiz = [
+  {
+    q: "¿Por qué se clasifica a HTTP como un protocolo 'stateless' (sin estado)?",
+    opts: [
+      "Porque no guarda memoria entre dos peticiones consecutivas por sí mismo.",
+      "Porque no admite transmisiones con imágenes o videos.",
+      "Porque se reinicia cada vez que el usuario cambia de pestaña.",
+      "Porque no usa números IP."
+    ],
+    ans: 0,
+    exp: "Correcto: HTTP no retiene memoria entre solicitudes. Por esa razón se inventaron las Cookies para asociar sesiones de usuario."
+  },
+  {
+    q: "¿Cuál es la única cabecera obligatoria en toda petición HTTP/1.1?",
+    opts: [
+      "User-Agent",
+      "Host",
+      "Accept-Encoding",
+      "Content-Length"
+    ],
+    ans: 1,
+    exp: "¡Exacto! Según la especificación oficial de MDN y RFC, la cabecera Host es indispensable para el alojamiento virtual compartido."
+  },
+  {
+    q: "¿Qué código de estado indica que el recurso en caché local sigue siendo válido?",
+    opts: [
+      "200 OK",
+      "201 Created",
+      "304 Not Modified",
+      "404 Not Found"
+    ],
+    ans: 2,
+    exp: "¡Muy bien! 304 Not Modified avisa al navegador que puede utilizar su copia local, ahorrando ancho de banda."
+  }
+];
+
+let qIdx = 0, qScore = 0;
+
+function renderQuiz(){
+  const item = quiz[qIdx];
+  $('#quizProg').innerText = `PREGUNTA ${qIdx + 1} DE ${quiz.length}`;
+  $('#quizScore').innerText = `Aciertos: ${qScore}`;
+  $('#quizQuestion').innerText = item.q;
+  const container = $('#quizOptions');
+  container.innerHTML = '';
+
+  item.opts.forEach((opt, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'quiz-opt';
+    btn.innerText = opt;
+    btn.onclick = () => selectQuizOpt(idx);
+    container.appendChild(btn);
+  });
+
+  $('#quizFeedback').style.display = 'none';
+  $('#btnNextQuiz').style.display = 'none';
+}
+
+function selectQuizOpt(idx){
+  const item = quiz[qIdx];
+  const buttons = $$('.quiz-opt');
+  buttons.forEach(b => b.disabled = true);
+  const fb = $('#quizFeedback');
+
+  if(idx === item.ans){
+    qScore++;
+    buttons[idx].classList.add('correct');
+    fb.style.display = 'block';
+    fb.style.borderColor = 'rgba(56,224,122,.4)';
+    fb.style.background = 'rgba(56,224,122,.1)';
+    fb.style.color = '#38e07a';
+    fb.innerHTML = `<strong>¡Excelente!</strong> ${item.exp}`;
+  } else {
+    buttons[idx].classList.add('wrong');
+    buttons[item.ans].classList.add('correct');
+    fb.style.display = 'block';
+    fb.style.borderColor = 'rgba(255,77,109,.4)';
+    fb.style.background = 'rgba(255,77,109,.1)';
+    fb.style.color = '#ff8099';
+    fb.innerHTML = `<strong>Incorrecto:</strong> ${item.exp}`;
+  }
+
+  $('#quizScore').innerText = `Aciertos: ${qScore}`;
+  $('#btnNextQuiz').style.display = 'inline-flex';
+}
+
+function nextQuizQuestion(){
+  if(qIdx < quiz.length - 1){
+    qIdx++;
+    renderQuiz();
+  } else {
+    $('#quizProg').innerText = "RESULTADO FINAL";
+    $('#quizQuestion').innerText = `¡Has completado el test con ${qScore} de ${quiz.length} aciertos!`;
+    $('#quizOptions').innerHTML = `<p style="color:var(--text);font-size:15px">Tienes las bases claras sobre el protocolo HTTP, su arquitectura de proxies, cabeceras y códigos de estado.</p>`;
+    $('#quizFeedback').style.display = 'none';
+    $('#btnNextQuiz').innerText = "↻ Reiniciar Test";
+    $('#btnNextQuiz').onclick = () => { qIdx = 0; qScore = 0; renderQuiz(); };
+  }
+}
+
+renderQuiz();
+</script>
+</body>
+</html>
