@@ -29,12 +29,20 @@ Aplicación web interactiva creada para comprender en profundidad el protocolo *
 
 ---
 
-## 🌐 Cómo desplegarlo en Vercel
+## 🌐 Demo en vivo
 
-1. **Subir a GitHub**:
-   - Sube esta carpeta a un nuevo repositorio en GitHub.
-2. **Importar en Vercel**:
-   - Entra en [vercel.com/new](https://vercel.com/new).
-   - Selecciona el repositorio e impórtalo (Framework Preset: **Other**).
-   - Haz clic en **Deploy**.
-   - En segundos tendrás tu URL pública `https://tu-proyecto.vercel.app` para compartirla con cualquier persona.
+**👉 https://guia-http.vercel.app**
+
+## 📦 Código fuente
+
+Repositorio: [od3235816293-ctrl/http-guide](https://github.com/od3235816293-ctrl/http-guide)
+
+## 🚀 Despliegue
+
+Sitio 100% estático y autocontenido: **sin build, sin dependencias y sin CDN**.
+Vercel sirve `index.html` y `presentacion-http.html` tal cual (Framework Preset: **Other**,
+sin *Build Command* ni *Output Directory*).
+
+- **Producción:** `https://guia-http.vercel.app`
+- **Redeploy manual:** `npx vercel deploy --prod --yes --project guia-http`
+- **Auto-deploy:** cada `git push` a `main` redespliega producción.

@@ -11,3 +11,7 @@ node_modules/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Variables de entorno (Vercel OIDC)
+.env*
+
